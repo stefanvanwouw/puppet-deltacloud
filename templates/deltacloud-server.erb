@@ -1,0 +1,77 @@
+#!/bin/bash
+### BEGIN INIT INFO
+# Provides:          deltacloud-server
+# Required-Start:    $local_fs $network $named $time $syslog
+# Required-Stop:     $local_fs $network $named $time $syslog
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Description:       DeltaCloud init
+### END INIT INFO
+
+. /lib/lsb/init-functions
+. /lib/init/vars.sh
+
+[ -r /etc/default/deltacloud-server ] && . /etc/default/deltacloud-server
+
+# You can overide these variables using /etc/default/deltacloud-server
+API_ENV="${API_ENV:-production}"
+DRIVERS="${DRIVERS:-(mock)}"
+PORTS="${PORTS:-(3001)}"
+HOST="${HOST:-localhost}"
+DELTACLOUD_USER="${DELTACLOUD_USER:-nobody}"
+
+RUNAS=$DELTACLOUD_USER
+
+[ ! -d /var/log/deltacloud ] && mkdir -p /var/log/deltacloud
+
+start() {
+  for i in "${!DRIVERS[@]}"; do 
+    DRIVER="${DRIVERS[$i]}"
+    PIDFILE="/var/run/deltacloud-$DRIVER.pid"
+    LOGFILE="/var/log/deltacloud/$DRIVER.log"
+    echo "deltacloudd -i ${DRIVER} -e ${API_ENV} --user ${DELTACLOUD_USER} --port ${PORTS[$i]} --host ${HOST}"
+    SCRIPT="deltacloudd -i ${DRIVER} -e ${API_ENV} --user ${DELTACLOUD_USER} --port ${PORTS[$i]} --host ${HOST}"
+    if [ -f $PIDFILE ] && kill -0 $(cat $PIDFILE); then
+      echo 'Service already running' >&2
+      return 1
+    fi
+    echo "Starting $DRIVER service..." >&2
+    local CMD="$SCRIPT &> \"$LOGFILE\" & echo \$!"
+    su -c "$CMD" $RUNAS > "$PIDFILE"
+    echo "Service started" >&2
+  done
+}
+
+stop() {
+  for i in "${!DRIVERS[@]}"; do 
+    DRIVER="${DRIVERS[$i]}"
+    PIDFILE="/var/run/deltacloud-$DRIVER.pid"
+    if [ ! -f "$PIDFILE" ] || ! kill -0 $(cat "$PIDFILE"); then
+      echo 'Service not running' >&2
+      return 1
+    fi
+    echo "Stopping $DRIVER service..." >&2
+    kill -15 $(cat "$PIDFILE") && rm -f "$PIDFILE"
+    echo 'Service stopped' >&2
+  done
+}
+
+
+case "$1" in
+  start)
+    start
+    ;;
+  stop)
+    stop
+    ;;
+  restart)
+    stop
+    start
+    ;;
+  *)
+    echo "Usage: $0 {start|stop|restart|uninstall}"
+esac
+
+
+
+
