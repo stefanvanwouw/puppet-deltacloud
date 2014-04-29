@@ -1,5 +1,13 @@
-class deltacloud {
+class deltacloud (
+    $environment,
+    $bind,
+    $providers,
+) {
     require deltacloud::requirements
+    $provider_key_str = inline_template('<% providers.keys.sort.each do |key| -%><%= key %> <% end -%>')
+    $provider_val_str = inline_template('<% providers.keys.sort.each do |key| -%><%= providers[key] %> <% end -%>')
+    #$provider_key_str = join(keys($providers), ' ')
+    #$provider_val_str = join(values($providers), ' ')
 
     file {'/etc/default/deltacloud-server':
         ensure  => present,

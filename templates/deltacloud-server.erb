@@ -56,6 +56,19 @@ stop() {
   done
 }
 
+status() {
+  for i in "${!DRIVERS[@]}"; do 
+    DRIVER="${DRIVERS[$i]}"
+    PIDFILE="/var/run/deltacloud-$DRIVER.pid"
+    if [ ! -f "$PIDFILE" ] || ! kill -0 $(cat "$PIDFILE"); then
+      echo 'Service not running' >&2
+      return 1
+    fi
+    return 0
+  done
+
+}
+
 
 case "$1" in
   start)
@@ -64,14 +77,13 @@ case "$1" in
   stop)
     stop
     ;;
+  status)
+    status
+    ;;
   restart)
     stop
     start
     ;;
   *)
-    echo "Usage: $0 {start|stop|restart|uninstall}"
+    echo "Usage: $0 {start|stop|restart|status}"
 esac
-
-
-
-
